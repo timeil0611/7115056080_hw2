@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HW2 Multiple Linear Regression Explorer：WHO Life Expectancy &amp; Car Price</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+/*__CHARTJS__*/
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<a class="skip" href="#main">跳到主要內容</a>
+<header class="top-header">
+  <div class="header-inner">
+    <div>
+      <div class="breadcrumbs"><span><i class="fa-solid fa-house"></i> AIoT HW2</span><i class="fa-solid fa-chevron-right" style="font-size:10px"></i>
+        <span>Multiple Linear Regression</span><i class="fa-solid fa-chevron-right" style="font-size:10px"></i><span style="color:var(--s800);font-weight:600" id="crumb"></span></div>
+      <h1><i class="fa-solid fa-chart-line" style="color:var(--primary)"></i> <span id="titleText"></span> <span class="brand-badge">CRISP-DM</span></h1>
+    </div>
+    <div class="header-actions">
+      <label for="problem" class="control-label" style="margin:0">Problem</label>
+      <select id="problem" class="input-field" style="width:auto">
+        <option value="who">Problem 1：WHO Life Expectancy（按國家切分）</option>
+        <option value="car">Problem 2：Car Price（log 目標）</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<main class="container" id="main">
+  <div class="hero-card"><h2 id="heroTitle"></h2><p id="heroText"></p><div class="hero-tags" id="heroTags"></div></div>
+
+  <section class="controls-wrapper" aria-labelledby="dataLbl">
+    <span class="control-label" id="dataLbl"><i class="fa-solid fa-database"></i> 0. Dataset（可輸入任意 CSV 網址）</span>
+    <div class="data-grid">
+      <label class="wide"><span class="input-label-row">CSV URL（留空＝使用內建資料）</span>
+        <input type="url" id="url" class="input-field" placeholder="https://raw.githubusercontent.com/.../data.csv"></label>
+      <label><span class="input-label-row">或上傳 CSV</span><input type="file" id="file" class="input-field" accept=".csv,text/csv"></label>
+      <div class="btn-row"><button class="btn" id="btnLoad"><i class="fa-solid fa-cloud-arrow-down"></i> 載入網址</button>
+        <button class="btn ghost" id="btnDefault"><i class="fa-solid fa-rotate-left"></i> 內建資料</button></div>
+    </div>
+    <div class="quick-urls">範例網址：<button class="linkbtn" data-url="https://raw.githubusercontent.com/Avik-Jain/100-Days-Of-ML-Code/master/datasets/50_Startups.csv">50_Startups.csv</button>
+      <button class="linkbtn" data-url="https://raw.githubusercontent.com/amankharwal/Website-data/master/CarPrice.csv">CarPrice.csv</button>
+      <button class="linkbtn" data-url="https://raw.githubusercontent.com/EvidenceN/DataSets/master/Life%20Expectancy%20Data.csv">Life Expectancy Data.csv</button></div>
+    <div class="data-grid" style="margin-top:14px">
+      <label><span class="input-label-row">Target (y)</span><select id="target" class="input-field"></select></label>
+      <label><span class="input-label-row">Group 欄位（按組切分 / GroupKFold）</span><select id="group" class="input-field"></select></label>
+      <label><span class="input-label-row">Test size</span><input type="number" id="testSize" class="input-field" value="0.2" min="0.1" max="0.5" step="0.05"></label>
+      <label><span class="input-label-row">Random seed</span><input type="number" id="seed" class="input-field" value="42"></label>
+      <label class="chk"><input type="checkbox" id="logY"> 在 log(y) 上建模（右偏目標）</label>
+      <div><button class="btn" id="btnRun"><i class="fa-solid fa-play"></i> 重新訓練</button></div>
+    </div>
+    <div id="status" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="card block" aria-labelledby="crispH">
+    <div class="card-header"><div class="card-title-group"><h3 id="crispH"><i class="fa-solid fa-diagram-project" style="color:var(--primary)"></i> CRISP-DM 六階段</h3>
+      <div class="card-subtitle">內容會依目前資料集與模型自動更新。</div></div></div>
+    <div class="tabs-pills" id="crispTabs" role="tablist"></div>
+    <div id="crispBody" class="crisp-body" role="tabpanel"></div>
+  </section>
+
+  <h2 class="sec"><span>2</span> Data Understanding</h2>
+  <div class="dual-charts-grid">
+    <div class="card"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-signal" style="color:var(--primary)"></i> 與目標的相關係數（訓練集）</h3>
+      <div class="card-subtitle" id="corrSub"></div></div></div><div class="chart-container tall"><canvas id="corrChart" aria-label="correlation with target"></canvas></div></div>
+    <div class="card"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-chart-column" style="color:var(--emerald)"></i> 目標分布</h3>
+      <div class="card-subtitle" id="histSub"></div></div></div><div class="chart-container tall"><canvas id="histChart" aria-label="target histogram"></canvas></div></div>
+  </div>
+  <div class="card block"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-table-list" style="color:var(--amber)"></i> 欄位總覽與處理方式</h3>
+    <div class="card-subtitle">型態、缺值、處理方式（Data Preparation）。</div></div></div>
+    <div class="table-responsive scroll"><table class="data-table"><thead><tr><th>欄位</th><th>型態</th><th>缺值</th><th>相異值</th><th>範圍 / 類別</th><th>處理</th></tr></thead><tbody id="colBody"></tbody></table></div></div>
+
+  <h2 class="sec"><span>4</span> Modeling：Feature Selection</h2>
+  <section class="controls-wrapper" aria-label="Model controls">
+    <span class="control-label"><i class="fa-solid fa-sliders"></i> 選擇特徵選擇方法</span>
+    <div class="tabs-pills" id="algoTabs" role="group"></div>
+    <div class="method-desc" id="methodDesc"></div>
+    <span class="control-label"><i class="fa-solid fa-list-ol"></i> 特徵數 k（1 … <span id="pMax"></span>）：<span class="leg sweet"></span> CV 建議　<span class="leg minc"></span> CV 最低</span>
+    <div class="k-selector-group" id="kGroup" role="group"></div>
+  </section>
+  <div class="metrics-grid" id="metricsGrid"></div>
+  <div class="chips-bar"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:700;color:var(--s700)"><i class="fa-solid fa-check-double" style="color:var(--primary)"></i> 選入的特徵（<span id="featCount">0</span>，依加入順序）：</span>
+      <div id="chips" style="display:flex;gap:8px;flex-wrap:wrap"></div></div>
+    <div id="notice" class="badge-tag badge-green notice"></div></div>
+  <div class="dual-charts-grid">
+    <div class="card"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-chart-line" style="color:var(--primary)"></i> RMSE vs k</h3>
+      <div class="card-subtitle">實線 CV RMSE（只用訓練集，用來選 k）、虛線 test RMSE。點擊資料點可切換 k。</div></div>
+      <label class="chk small"><input type="checkbox" id="cmpAll"> 疊加所有方法</label></div>
+      <div class="chart-container"><canvas id="rmseChart" aria-label="RMSE by k"></canvas></div></div>
+    <div class="card"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-arrow-trend-up" style="color:var(--emerald)"></i> R² vs k</h3>
+      <div class="card-subtitle">Train R² 與 test R²，兩者差距大代表 overfitting。</div></div></div>
+      <div class="chart-container"><canvas id="r2Chart" aria-label="R squared by k"></canvas></div></div>
+  </div>
+  <div class="card block"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-scale-balanced" style="color:var(--primary)"></i> 各方法比較（各自的 CV 建議 k）</h3>
+    <div class="card-subtitle">k 只用 CV 決定，test 欄位僅供比較。點一列可切換到該方法。</div></div></div>
+    <div class="table-responsive"><table class="data-table"><thead><tr><th>方法</th><th>建議 k</th><th>CV RMSE</th><th>Test RMSE</th><th>Test MAE</th><th>Test R²</th><th>Adj R²</th></tr></thead><tbody id="cmpBody"></tbody></table></div></div>
+  <div class="equation-card"><div class="equation-title"><i class="fa-solid fa-square-root-variable"></i> Fitted OLS Regression Equation（原始單位）</div><div class="equation-formula" id="equationBox"></div></div>
+  <div class="calc-grid">
+    <div class="card"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-table" style="color:var(--primary)"></i> 係數與統計檢定</h3>
+      <div class="card-subtitle" id="coefSub"></div></div></div>
+      <div class="table-responsive"><table class="data-table"><thead><tr><th>Predictor</th><th>β</th><th>Std. Error</th><th>t</th><th>p-value</th><th>95% CI</th><th>VIF</th></tr></thead><tbody id="coefBody"></tbody></table></div></div>
+    <div class="card"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-ranking-star" style="color:var(--emerald)"></i> 標準化係數</h3>
+      <div class="card-subtitle">x 增加 1 個標準差時 ŷ 的變化，可比較影響力大小。</div></div></div>
+      <div class="chart-container"><canvas id="stdChart" aria-label="standardized coefficients"></canvas></div></div>
+  </div>
+  <h2 class="sec"><span>5</span> Evaluation：預測圖與區間</h2>
+  <div class="card block"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-chart-area" style="color:var(--primary)"></i> 測試集預測：95% 信賴區間與預測區間</h3>
+    <div class="card-subtitle" id="bandSub"></div></div><span class="badge-tag badge-blue" id="coverBadge"></span></div>
+    <div class="chart-container xl"><canvas id="bandChart" aria-label="predictions with confidence and prediction intervals"></canvas></div></div>
+  <div class="dual-charts-grid">
+    <div class="card"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-bullseye" style="color:var(--primary)"></i> Actual vs Predicted（test）</h3>
+      <div class="card-subtitle">藍點在 95% PI 內、紅點在 PI 外；虛線 y = x。</div></div></div>
+      <div class="chart-container"><canvas id="avpChart" aria-label="actual versus predicted"></canvas></div></div>
+    <div class="card"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-braille" style="color:var(--amber)"></i> Residuals vs Fitted（train）</h3>
+      <div class="card-subtitle" id="resSub">看有沒有曲線趨勢（非線性）或漏斗形（異質變異）。</div></div></div>
+      <div class="chart-container"><canvas id="resChart" aria-label="residuals versus fitted"></canvas></div></div>
+  </div>
+  <div class="card block" id="tsCard"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-timeline" style="color:var(--emerald)"></i> <span id="tsTitle">測試組時間序列</span></h3>
+    <div class="card-subtitle">選一個測試組，看實際值、預測值與 CI / PI 隨時間的變化。</div></div>
+    <label><span class="sr-only">選擇組別</span><select id="tsGroup" class="input-field" style="width:auto"></select></label></div>
+    <div class="chart-container"><canvas id="tsChart" aria-label="time series of a test group"></canvas></div></div>
+  <div class="calc-grid">
+    <div class="card"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-stethoscope" style="color:var(--primary)"></i> 回歸假設檢查</h3>
+      <div class="card-subtitle">在訓練集殘差上計算。</div></div></div>
+      <div class="table-responsive"><table class="data-table"><thead><tr><th>假設</th><th>檢定</th><th>結果</th><th>判斷</th></tr></thead><tbody id="assBody"></tbody></table></div></div>
+    <div class="card"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-magnifying-glass" style="color:var(--amber)"></i> 誤差最大的 10 筆（test）</h3>
+      <div class="card-subtitle">依 |殘差| 排序。</div></div></div>
+      <div class="table-responsive"><table class="data-table"><thead><tr><th>#</th><th>樣本</th><th>Actual</th><th>Pred</th><th>Residual</th><th>95% PI</th></tr></thead><tbody id="outBody"></tbody></table></div></div>
+  </div>
+
+  <h2 class="sec"><span>6</span> Deployment：Live Predictor</h2>
+  <div class="card block"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-calculator" style="color:var(--emerald)"></i> <span id="predTitle">Live Predictor</span></h3>
+    <div class="card-subtitle">用目前選的模型即時預測。灰色欄位沒有被模型使用；留空會用訓練集中位數補。</div></div>
+    <label class="pick"><span class="input-label-row">帶入測試樣本</span><select id="sampleSel" class="input-field"></select></label></div>
+    <div class="pred-grid"><div id="predInputs" class="pred-inputs"></div>
+      <div class="prediction-output-box" aria-live="polite"><div class="pred-label" id="predLabel">Predicted</div><div class="pred-value" id="predOut">-</div>
+        <div class="pred-pi" id="predPI"></div><div class="pred-formula-note" id="predNote"></div></div></div></div>
+
+  <div class="card block" id="infoCard"><div class="card-header"><div class="card-title-group"><h3><i class="fa-solid fa-image" style="color:var(--primary)"></i> 資訊圖表（Problem 1 摘要）</h3>
+    <div class="card-subtitle">由 notebook 結果整理。</div></div></div>
+    <img src="figures/infographic.png" alt="WHO Life Expectancy 多元線性回歸成果資訊圖表" class="info-img" onerror="document.getElementById('infoCard').remove()"></div>
+</main>
+
+<footer><div class="footer-inner">
+  <div style="max-width:640px"><h4 style="font-size:16px;margin-bottom:8px"><i class="fa-solid fa-building-columns"></i> HW2 Multiple Linear Regression Explorer</h4>
+    <p style="font-size:13px;line-height:1.7">學號 7115056080。兩個問題共用同一套 CRISP-DM workflow：特徵選擇（6 種方法 + CV 決定 k）、OLS 推論、95% CI / PI、回歸假設檢查與即時預測。所有計算都在瀏覽器以 JavaScript 完成，不需要後端。Problem 1 的預設設定和 notebook 的數字一致。</p></div>
+  <div style="max-width:560px"><h4 style="font-size:14px;color:var(--s500);margin-bottom:8px">References</h4>
+    <div class="ack-card">
+      <strong>Problem 1：</strong><a href="https://www.kaggle.com/datasets/kumarajarshi/life-expectancy-who" target="_blank" rel="noopener">Life Expectancy (WHO), Kaggle</a>（CSV 鏡像 <a href="https://github.com/EvidenceN/DataSets" target="_blank" rel="noopener">EvidenceN/DataSets</a>）<br>
+      <strong>Problem 2：</strong><a href="https://www.kaggle.com/datasets/hellbuoy/car-price-prediction" target="_blank" rel="noopener">Car Price Prediction, Kaggle</a>（CSV 鏡像 <a href="https://github.com/amankharwal/Website-data" target="_blank" rel="noopener">amankharwal/Website-data</a>）<br>
+      <strong>Layout 參考：</strong><a href="https://huanchen1107.github.io/AIoT-DIC2-MultipleLR/" target="_blank" rel="noopener">AIoT-DIC2-MultipleLR</a><br>
+      <strong>程式：</strong><a href="7115056080_hw2.ipynb">7115056080_hw2.ipynb</a>、<a href="7115056080_hw2.py">.py</a>；Chart.js 4.4.1
+    </div></div>
+</div></footer>
+
+<script>
+/*__DATA__*/
+/*__CORE__*/
+/*__APP__*/
+</script>
+</body>
+</html>
