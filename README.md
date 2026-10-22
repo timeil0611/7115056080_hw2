@@ -2,7 +2,7 @@
 
 學號 7115056080
 
-- 網頁 Demo：https://YOUR_GITHUB_ID.github.io/7115056080_hw2/
+- 網頁 Demo：https://timeil0611.github.io/7115056080_hw2/
 - Notebook：[7115056080_hw2.ipynb](7115056080_hw2.ipynb)
 
 ![infographic](figures/infographic.png)
